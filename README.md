@@ -1,10 +1,10 @@
 # CicloTrace
-Solução de rastreabilidade e auditoria operacional para a cadeia de reciclagem, desenvolvida no Curso Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (ADS) do Centro Universitário Brasileiro (UNIBRA), alinhada às metas do ODS 12 (Consumo e Produção Responsáveis).
+Solução autoral de rastreabilidade e auditoria operacional para a cadeia de reciclagem, alinhada às diretrizes do ODS 12 (Consumo e Produção Responsáveis).
 
 ## Governança de Dados e Status Institucional
 
 - **Base de Dados 100% Fictícia:** Todos os registros de lotes, pesagens, movimentações e indicadores exibidos no protótipo e nos painéis analíticos operam sobre uma **massa de dados simulada de 3.000 kg**, estruturada exclusivamente para validação funcional e de arquitetura.
-- **Tramitação Institucional junto à EMLURB:** Projeto de caráter estritamente acadêmico. A documentação formal (Ofício Institucional UNIBRA) solicitando autorização para estudo piloto e validação conceitual foi encaminhada à **EMLURB** (Autarquia de Manutenção e Limpeza Urbana do Recife) em **17/11/2026**. O grupo aguarda o parecer oficial da autarquia antes de qualquer uso de parâmetros operacionais reais, mantendo o documento fora do repositório público por conformidade e segurança da informação.
+- **Tramitação junto à EMLURB:** O projeto aguarda parecer e liberação formal da **EMLURB** (Autarquia de Manutenção e Limpeza Urbana do Recife) para eventual estudo piloto ou validação com parâmetros operacionais reais da coleta seletiva. A documentação formal solicitando autorização foi encaminhada em **17/11/2026**, sendo mantida fora do repositório público por conformidade e segurança da informação.
 
 ## Problema de Negócio e Escopo Funcional
 
@@ -28,8 +28,8 @@ Em um banco relacional tradicional (SQL), rastrear lotes que sofrem fracionament
 - **Relacionamentos:** `TRANSPORTE`, `GERACAO` e `PROCESSAMENTO`.
 - **Resultados da Base Piloto Simulada (3.000 kg):** Taxa de aproveitamento efetivo de 78,3% e taxa de perdas/rejeito de 21,7%.
 
-### Stack Tecnológica
-- **Protótipo Front-end (`index.html`):** HTML5 e Tailwind CSS, executado diretamente no navegador sem dependências de build.
+### Stack Tecnológica e Organização Front-end
+- **Front-end (`index.html`, `css/style.css`, `js/app.js`):** Estruturado com separação de responsabilidades entre marcação HTML5, estilização (Tailwind CSS e estilos customizados) e lógica client-side em JavaScript puro, sem dependências de build.
 - **Persistência (Grafo):** Neo4j orquestrado via Docker (`docker-compose.yml`).
 - **Analytics:** Power BI.
 
@@ -37,14 +37,15 @@ Em um banco relacional tradicional (SQL), rastrear lotes que sofrem fracionament
 
 ```text
 CicloTrace/
-├── index.html             # Protótipo interativo da aplicação web
+├── index.html             # Estrutura principal da interface web
+├── css/
+│   └── style.css          # Folha de estilos customizados da aplicação
+├── js/
+│   └── app.js             # Lógica de negócio client-side e interatividade
 ├── docker-compose.yml     # Definição do container Neo4j para ambiente local
 ├── .gitignore             # Regras de arquivos ignorados no versionamento Git
 └── README.md              # Documentação técnica e funcional do projeto
 ```
-
-- **index.html:** Arquivo principal da interface navegável, padronizado na raiz do repositório para permitir execução direta em navegador e publicação via GitHub Pages.
-- **docker-compose.yml:** Configuração de ambiente para subir o banco de dados Neo4j localmente e executar consultas Cypher.
 
 ## Como Executar
 
@@ -55,7 +56,7 @@ Por ser uma aplicação estática executada direto no navegador, não exige serv
 git clone [https://github.com/hellencatarine9-git/CicloTrace.git](https://github.com/hellencatarine9-git/CicloTrace.git)
 ```
 
-Com o GitHub Pages habilitado em `Settings > Pages` (branch `main`), o protótipo também pode ser validado diretamente pela URL pública do repositório.
+Com o GitHub Pages habilitado em `Settings > Pages` (branch `main`), o protótipo também pode ser validado diretamente pela URL pública gerada pelo repositório.
 
 ### 2. Ambiente Neo4j (Opcional)
 Com o Docker instalado, execute na raiz do projeto:
@@ -66,9 +67,6 @@ docker-compose up -d
 
 O Neo4j Browser ficará acessível em `http://localhost:7474` (protocolo Bolt na porta `7687`).
 
-## Liderança, Orientação e Equipe
+## Autoria
 
-- **Instituição:** Centro Universitário Brasileiro (UNIBRA) - Recife/PE
-- **Curso:** Superior de Tecnologia em Análise e Desenvolvimento de Sistemas (ADS)
-- **Orientação Acadêmica:** Prof. André Ribeiro - MSc em Ciência da Computação (CIn/UFPE) | Professor Universitário | Pesquisador | Tutor PBL | Analista de Sistemas
-- **Liderança de Projeto e Análise Funcional:** Hellen Gomes - Analista Funcional (Minsait / Secretaria de Educação e Tecnologia do Recife) | Graduanda em ADS (UNIBRA) e equipe CicloTrace
+- **Idealização, Análise Funcional e Desenvolvimento:** Hellen Gomes - Analista Funcional | Graduanda em Análise e Desenvolvimento de Sistemas (ADS)
