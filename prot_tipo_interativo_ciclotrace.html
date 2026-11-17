@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CicloTrace — Protótipo Interativo de Rastreabilidade</title>
+  <!-- Fonte Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            ciclo: {
+              bg: '#EBF0F6',
+              blue: '#0284C7',
+              navy: '#0B3B75',
+              green: '#16A34A',
+              orange: '#EA580C',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos base e barra de rolagem discreta dentro do smartphone */
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top left, #DCE7F5 0%, #EBF0F6 55%, #D5E2F2 100%);
+    }
+
+    .app-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .app-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .app-scroll::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 9999px;
+    }
+
+    /* Animação suave de entrada entre telas */
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .screen-animate {
+      animation: fadeSlideIn 0.22s ease-out forwards;
+    }
+
+    /* Pulso suave no nó selecionado do grafo Neo4j */
+    @keyframes nodePulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(2, 132, 199, 0);
+      }
+    }
+    .neo4j-node-active {
+      animation: nodePulse 2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 text-slate-800 select-none">
+
+  <!-- Container do Smartphone Centralizado -->
+  <main class="relative w-full max-w-[392px] h-[812px] max-h-[95vh] bg-slate-900 rounded-[44px] p-[11px] shadow-[0_24px_60px_-15px_rgba(15,23,42,0.35)] border border-slate-700/80 flex flex-col">
+    
+    <!-- Botões físicos laterais decorativos (desktop) -->
+    <div class="hidden sm:block absolute -left-[3px] top-28 w-[3px] h-10 bg-slate-700 rounded-l"></div>
+    <div class="hidden sm:block absolute -left-[3px] top-44 w-[3px] h-14 bg-slate-700 rounded-l"></div>
+    <div class="hidden sm:block absolute -right-[3px] top-36 w-[3px] h-16 bg-slate-700 rounded-r"></div>
+
+    <!-- Tela Interna do Smartphone -->
+    <div class="relative w-full h-full bg-[#EBF0F6] rounded-[34px] overflow-hidden flex flex-col">
+
+      <!-- Barra de Status do Celular + Dynamic Island -->
+      <header class="bg-[#EBF0F6] pt-2.5 pb-1.5 px-6 flex items-center justify-between text-[11px] font-semibold text-slate-700 shrink-0 z-20">
+        <span>09:41</span>
+        <div class="w-24 h-5 bg-slate-950 rounded-full flex items-center justify-end pr-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400/80"></span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <!-- Ícone Sinal -->
+          <svg class="w-3.5 h-3.5 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="2" y="14" width="3" height="6" rx="1"/>
+            <rect x="7" y="11" width="3" height="9" rx="1"/>
+            <rect x="12" y="7" width="3" height="13" rx="1"/>
+            <rect x="17" y="3" width="3" height="17" rx="1"/>
+          </svg>
+          <!-- Ícone Bateria -->
+          <svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="18" height="10" rx="2"/>
+            <rect x="4" y="9" width="12" height="6" rx="1" fill="currentColor"/>
+            <path d="M22 11v2" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </header>
+
+      <!-- Cabeçalho Contextual do App (Exibido nas telas 2, 3 e 4) -->
+      <div id="appTopBar" class="hidden px-4 py-2 bg-white/90 backdrop-blur-sm border-b border-slate-200/80 flex items-center justify-between shrink-0 z-10">
+        <div class="flex items-center gap-2">
+          <!-- Mini Logo SVG CicloTrace -->
+          <svg class="w-8 h-5 shrink-0" viewBox="0 0 120 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="miniGrad" x1="6" y1="32" x2="114" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0B3B75"/>
+                <stop offset="45%" stop-color="#0284C7"/>
+                <stop offset="100%" stop-color="#16A34A"/>
+              </linearGradient>
+            </defs>
+            <path d="M32 14C19.85 14 10 22.06 10 32C10 41.94 19.85 50 32 50C44.5 50 53 39 60 32C67 25 75.5 14 88 14C100.15 14 110 22.06 110 32C110 41.94 100.15 50 88 50C78.5 50 71 45 65.5 39" stroke="url(#miniGrad)" stroke-width="8.5" stroke-linecap="round"/>
+            <path d="M77 33C84 24 96 23 101 23C101 31 96 41 85 42C80 42.5 76 38 77 33Z" fill="#16A34A"/>
+            <circle cx="102" cy="15" r="6.5" fill="#FFFFFF" stroke="#EA580C" stroke-width="4.5"/>
+            <circle cx="11" cy="34" r="5.5" fill="#FFFFFF" stroke="#0B3B75" stroke-width="4"/>
+          </svg>
+          <div class="leading-tight">
+            <span class="text-[13px] font-extrabold tracking-tight text-[#0B3B75]">Ciclo<span class="text-[#16A34A]">Trace</span></span>
+            <p id="headerContextLabel" class="text-[10px] font-medium text-slate-500 truncate max-w-[185px]">EMLURB - Rota Norte • Operador</p>
+          </div>
+        </div>
+        <button onclick="navigateTo('acesso')" title="Trocar Unidade ou Perfil" class="text-[10px] font-semibold text-[#0284C7] bg-sky-50 hover:bg-sky-100 px-2.5 py-1 rounded-[10px] border border-sky-200/70 transition">
+          Trocar
+        </button>
+      </div>
+
+      <!-- Banner de Notificação Toast (Substitui alert()) -->
+      <div id="toastBanner" class="hidden mx-4 mt-2 px-3 py-2 rounded-[10px] text-white text-xs font-medium shadow-md flex items-center justify-between gap-2 z-30 transition-all">
+        <span id="toastMessage">Operação realizada!</span>
+        <button onclick="hideToast()" class="text-white/80 hover:text-white font-bold">✕</button>
+      </div>
+
+      <!-- Área Principal Rolável das 4 Telas -->
+      <div id="screenContainer" class="flex-1 overflow-y-auto app-scroll px-4 pt-3 pb-5">
+
+        <!-- ========================================================= -->
+        <!-- TELA 1: ACESSO                                            -->
+        <!-- ========================================================= -->
+        <section id="screen-acesso" class="screen-animate space-y-3.5">
+          <!-- Cartão de Identidade e Logo -->
+          <div class="bg-white rounded-[10px] p-5 shadow-sm border border-slate-200/70 text-center relative overflow-hidden">
+            <div class="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-emerald-500/10 pointer-events-none"></div>
+            <div class="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-sky-500/10 pointer-events-none"></div>
+
+            <!-- Logotipo SVG Personalizado CicloTrace -->
+            <div class="flex justify-center mb-2">
+              <svg class="w-40 h-20" viewBox="0 0 220 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Logotipo CicloTrace">
+                <defs>
+                  <linearGradient id="cicloInfinityGrad" x1="20" y1="55" x2="200" y2="55" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#0B3B75"/>
+                    <stop offset="48%" stop-color="#0284C7"/>
+                    <stop offset="100%" stop-color="#16A34A"/>
+                  </linearGradient>
+                </defs>
+                <!-- Símbolo do Infinito com abertura estilizada -->
+                <path d="M62 24C40 24 22 38 22 55C22 72 40 86 62 86C84 86 98 67 110 55C122 43 136 24 158 24C180 24 198 38 198 55C198 72 180 86 158 86C141 86 128 77 119 67" stroke="url(#cicloInfinityGrad)" stroke-width="13" stroke-linecap="round"/>
+                <!-- Folha interna no laço verde -->
+                <path d="M138 57C149 41 169 39 178 39C178 53 169 70 151 72C142 73 136 65 138 57Z" fill="#16A34A"/>
+                <path d="M141 67C151 58 163 49 175 42" stroke="#DCFCE7" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- Nó Laranja Superior Direito -->
+                <circle cx="182" cy="26" r="10" fill="#FFFFFF" stroke="#EA580C" stroke-width="6.5"/>
+                <!-- Nó Azul Esquerdo -->
+                <circle cx="23" cy="58" r="8.5" fill="#FFFFFF" stroke="#0B3B75" stroke-width="5.5"/>
+                <!-- Nó Verde Inferior Central -->
+                <circle cx="88" cy="77" r="7.5" fill="#FFFFFF" stroke="#16A34A" stroke-width="5"/>
+              </svg>
+            </div>
+
+            <h1 class="text-2xl font-extrabold tracking-tight text-[#0B3B75]">
+              Ciclo<span class="text-[#16A34A]">Trace</span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-1 font-medium">
+              Rastreabilidade e Aproveitamento de Resíduos para Economia Circular
+            </p>
+          </div>
+
+          <!-- Cartão de Seleção de Unidade Operacional -->
+          <div class="bg-white rounded-[10px] p-4 shadow-sm border border-slate-200/70 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold uppercase tracking-wider text-slate-500">1. Unidade Operacional</label>
+              <span class="text-[10px] font-semibold text-[#0284C7] bg-sky-50 px-2 py-0.5 rounded-[10px]">Recife - PE</span>
+            </div>
+
+            <div id="unitOptions" class="space-y-2">
+              <!-- Opção 1 -->
+              <button type="button" onclick="selectUnit('EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)')" data-unit="EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)"
+                class="unit-btn w-full text-left p-2.5 rounded-[10px] border-2 border-[#0284C7] bg-sky-50/70 transition flex items-start gap-2.5">
+                <span class="unit-dot mt-0.5 w-4 h-4 rounded-full border-4 border-[#0284C7] bg-white shrink-0"></span>
+                <div>
+                  <p class="text-xs font-bold text-slate-800">EMLURB - Rota Norte</p>
+                  <p class="text-[11px] text-slate-500">Av. Norte / Casa Amarela, Recife</p>
+                </div>
+              </button>
+
+              <!-- Opção 2 -->
+              <button type="button" onclick="selectUnit('EMLURB - Rota Sul (Av. Boa Viagem / Pina, Recife)')" data-unit="EMLURB - Rota Sul (Av. Boa Viagem / Pina, Recife)"
+                class="unit-btn w-full text-left p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 transition flex items-start gap-2.5">
+                <span class="unit-dot mt-0.5 w-4 h-4 rounded-full border-2 border-slate-300 bg-white shrink-0"></span>
+                <div>
+                  <p class="text-xs font-bold text-slate-800">EMLURB - Rota Sul</p>
+                  <p class="text-[11px] text-slate-500">Av. Boa Viagem / Pina, Recife</p>
+                </div>
+              </button>
+
+              <!-- Opção 3 -->
+              <button type="button" onclick="selectUnit('Cooperativa Recicla Recife')" data-unit="Cooperativa Recicla Recife"
+                class="unit-btn w-full text-left p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 transition flex items-start gap-2.5">
+                <span class="unit-dot mt-0.5 w-4 h-4 rounded-full border-2 border-slate-300 bg-white shrink-0"></span>
+                <div>
+                  <p class="text-xs font-bold text-slate-800">Cooperativa Recicla Recife</p>
+                  <p class="text-[11px] text-slate-500">Central de Triagem e Beneficiamento</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Cartão de Seleção de Perfil -->
+          <div class="bg-white rounded-[10px] p-4 shadow-sm border border-slate-200/70 space-y-2.5">
+            <label class="text-xs font-bold uppercase tracking-wider text-slate-500 block">2. Perfil de Acesso</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="role-operador" onclick="selectRole('Operador de Coleta')"
+                class="p-2.5 rounded-[10px] border-2 border-[#0284C7] bg-sky-50/70 text-left transition">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-base">🚛</span>
+                  <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
+                </div>
+                <p class="text-xs font-bold text-slate-800">Operador de Coleta</p>
+                <p class="text-[10px] text-slate-500 leading-tight mt-0.5">Pesagem e lacre na origem</p>
+              </button>
+
+              <button type="button" id="role-auditor" onclick="selectRole('Auditor / Gestor')"
+                class="p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-left transition">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-base">🛡️</span>
+                  <span class="w-2 h-2 rounded-full bg-slate-200"></span>
+                </div>
+                <p class="text-xs font-bold text-slate-800">Auditor / Gestor</p>
+                <p class="text-[10px] text-slate-500 leading-tight mt-0.5">Grafo Neo4j e repasse</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Botão Principal Entrar -->
+          <button type="button" onclick="enterOperation()"
+            class="w-full py-3.5 px-4 bg-[#0284C7] hover:bg-[#0369A1] active:scale-[0.99] text-white font-bold text-sm rounded-[10px] shadow-md shadow-sky-600/20 transition flex items-center justify-center gap-2">
+            <span>Entrar na Operação</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            </svg>
+          </button>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TELA 2: REGISTRAR LOTE                                    -->
+        <!-- ========================================================= -->
+        <section id="screen-registrar" class="hidden screen-animate space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-800">Registrar Novo Lote</h2>
+              <p class="text-[11px] text-slate-500">Pesagem auditada na origem com vínculo de rota</p>
+            </div>
+            <button type="button" onclick="fillPresetSample()"
+              class="text-[10px] font-bold text-[#0284C7] bg-white hover:bg-sky-50 px-2.5 py-1.5 rounded-[10px] border border-slate-200 shadow-xs transition">
+              ⚡ Exemplo Rápido
+            </button>
+          </div>
+
+          <form id="registerForm" onsubmit="handleRegisterBatch(event)" class="bg-white rounded-[10px] p-4 shadow-sm border border-slate-200/70 space-y-3">
+            <!-- Código do Lote -->
+            <div>
+              <label for="inputCodigo" class="block text-[11px] font-bold text-slate-600 mb-1">Código do Lote</label>
+              <input id="inputCodigo" type="text" required value="NORTE-DIU-003" placeholder="Ex: NORTE-DIU-001"
+                class="w-full px-3 py-2 text-xs font-bold uppercase text-slate-800 bg-slate-50 border border-slate-200 rounded-[10px] focus:outline-none focus:border-[#0284C7] focus:bg-white transition" />
+            </div>
+
+            <!-- Tipo de Material -->
+            <div>
+              <label for="inputMaterial" class="block text-[11px] font-bold text-slate-600 mb-1">Tipo de Material</label>
+              <select id="inputMaterial" onchange="autoSuggestClassification()"
+                class="w-full px-3 py-2 text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-[10px] focus:outline-none focus:border-[#0284C7] focus:bg-white transition">
+                <option value="Plástico PET e Papelão">Plástico PET e Papelão</option>
+                <option value="Ferro e Sucata Metálica">Ferro e Sucata Metálica</option>
+                <option value="Rejeito Lixo Comum e Hospitalar">Rejeito Lixo Comum e Hospitalar</option>
+                <option value="Desvio Catadores Anônimos">Desvio Catadores Anônimos</option>
+              </select>
+            </div>
+
+            <!-- Peso em kg + Botões Rápidos -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="inputPeso" class="text-[11px] font-bold text-slate-600">Peso Aferido (kg)</label>
+                <div class="flex gap-1">
+                  <button type="button" onclick="adjustWeight(100)" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600">+100</button>
+                  <button type="button" onclick="adjustWeight(500)" class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600">+500</button>
+                </div>
+              </div>
+              <div class="relative">
+                <input id="inputPeso" type="number" min="1" step="1" required value="500" placeholder="Ex: 1400"
+                  class="w-full px-3 py-2 pr-10 text-sm font-extrabold text-slate-800 bg-slate-50 border border-slate-200 rounded-[10px] focus:outline-none focus:border-[#0284C7] focus:bg-white transition" />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">kg</span>
+              </div>
+            </div>
+
+            <!-- Rota Operacional -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Rota de Coleta</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" id="btnRotaNorte" onclick="selectRota('Rota Norte')"
+                  class="py-2 px-3 rounded-[10px] text-xs font-bold border-2 border-[#0284C7] bg-sky-50 text-[#0284C7] transition">
+                  📍 Rota Norte
+                </button>
+                <button type="button" id="btnRotaSul" onclick="selectRota('Rota Sul')"
+                  class="py-2 px-3 rounded-[10px] text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition">
+                  📍 Rota Sul
+                </button>
+              </div>
+            </div>
+
+            <!-- Classificação (Aproveitável Verde vs Perda Laranja) -->
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Classificação da Triagem</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" id="btnClassAproveitavel" onclick="selectClassificacao('Aproveitável')"
+                  class="p-2.5 rounded-[10px] border-2 border-[#16A34A] bg-green-50 text-left transition">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-[#16A34A]">Aproveitável</span>
+                    <span class="w-4 h-4 rounded-full bg-[#16A34A] text-white text-[10px] flex items-center justify-center font-bold">✓</span>
+                  </div>
+                  <p class="text-[10px] text-green-700/80 mt-0.5">Gera repasse justo</p>
+                </button>
+
+                <button type="button" id="btnClassPerda" onclick="selectClassificacao('Perda / Contaminado')"
+                  class="p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-orange-50/40 text-left transition">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-[#EA580C]">Perda / Alerta</span>
+                    <span class="w-4 h-4 rounded-full bg-orange-100 text-[#EA580C] text-[10px] flex items-center justify-center font-bold">!</span>
+                  </div>
+                  <p class="text-[10px] text-slate-500 mt-0.5">Contaminado / Quebra</p>
+                </button>
+              </div>
+            </div>
+
+            <!-- Botão Submit -->
+            <button type="submit"
+              class="w-full py-3 px-4 bg-[#16A34A] hover:bg-green-700 active:scale-[0.99] text-white font-bold text-xs rounded-[10px] shadow-md shadow-green-600/20 transition flex items-center justify-center gap-2 mt-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span>Registrar e Gerar Rastreio</span>
+            </button>
+          </form>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TELA 3: RASTREIO & AUDITORIA (COMPROVANTE + NEO4J GRAPH)  -->
+        <!-- ========================================================= -->
+        <section id="screen-rastreio" class="hidden screen-animate space-y-3">
+          <!-- Seletor de Lote Cadastrado -->
+          <div class="bg-white rounded-[10px] p-3 shadow-sm border border-slate-200/70">
+            <label for="auditBatchSelect" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              Inspecionar Lote Auditado
+            </label>
+            <select id="auditBatchSelect" onchange="selectAuditBatch(this.value)"
+              class="w-full px-2.5 py-2 text-xs font-bold text-slate-800 bg-[#EBF0F6] border border-slate-200 rounded-[10px] focus:outline-none focus:border-[#0284C7]">
+              <!-- Populado via JS -->
+            </select>
+          </div>
+
+          <!-- Cartão de Comprovante Digital Auditado -->
+          <div id="auditCertificateCard" class="bg-white rounded-[10px] p-4 shadow-sm border border-slate-200/70 space-y-3">
+            <!-- Topo com Selo de Validação + QR Code -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="space-y-1.5">
+                <span id="auditStatusBadge" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-[10px] text-[11px] font-extrabold bg-green-100 text-[#16A34A]">
+                  ✓ Origem Comprovada
+                </span>
+                <h3 id="auditBatchCode" class="text-base font-extrabold text-slate-900 tracking-tight">NORTE-DIU-001</h3>
+                <p id="auditBatchMaterial" class="text-xs font-semibold text-slate-600">Plástico PET e Papelão</p>
+              </div>
+
+              <!-- QR Code Visual SVG -->
+              <div class="p-1.5 bg-slate-50 border border-slate-200 rounded-[10px] text-center shrink-0">
+                <svg class="w-14 h-14 text-slate-900" viewBox="0 0 36 36" fill="currentColor" aria-label="QR Code de Auditoria">
+                  <path d="M2 2h10v10H2V2zm2 2v6h6V4H4zm2 2h2v2H6V6zm18-4h10v10H24V2zm2 2v6h6V4h-6zm2 2h2v2h-2V6zM2 24h10v10H2V24zm2 2v6h6v-6H4zm2 2h2v2H6v-2zm10-24h2v4h-2V4zm4 2h2v4h-2V6zm-4 6h4v2h-4v-2zm-2 4h6v2h-6v-2zm8-2h4v4h-4v-4zm6 0h4v2h-4v-2zM4 16h4v2H4v-2zm6 2h4v4h-4v-4zm6 2h4v2h-4v-2zm6 2h2v4h-2v-4zm4-2h6v4h-6v-4zm-10 6h4v6h-4v-6zm6 4h6v2h-6v-2zm8-2h2v4h-2v-4z"/>
+                </svg>
+                <span id="auditBatchHash" class="block text-[8px] font-mono text-slate-400 mt-0.5">0x8F4C...91A2</span>
+              </div>
+            </div>
+
+            <!-- Grade de Métricas do Comprovante -->
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+              <div class="bg-slate-50 p-2 rounded-[10px]">
+                <span class="text-[10px] text-slate-400 font-semibold block">Peso Auditado</span>
+                <span id="auditBatchWeight" class="text-sm font-extrabold text-[#0284C7]">1.400 kg</span>
+              </div>
+              <div class="bg-slate-50 p-2 rounded-[10px]">
+                <span class="text-[10px] text-slate-400 font-semibold block">Repasse Justo Cooperativa</span>
+                <span id="auditBatchPayout" class="text-sm font-extrabold text-[#16A34A]">R$ 2.030,00</span>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-slate-500 flex items-center justify-between bg-slate-50/80 px-2.5 py-1.5 rounded-[10px]">
+              <span id="auditBatchRoute">📍 Rota Norte • EMLURB</span>
+              <span id="auditBatchTime" class="font-medium text-slate-400">Hoje, 08:15</span>
+            </div>
+          </div>
+
+          <!-- Diagrama Interativo de Nós Estilo Neo4j -->
+          <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-[#0284C7]"></span>
+                  Grafo de Custódia (Neo4j)
+                </h4>
+                <p class="text-[10px] text-slate-500">Toque em um nó para inspecionar os vínculos</p>
+              </div>
+              <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-[10px] bg-slate-100 text-slate-600">Cypher Audit</span>
+            </div>
+
+            <!-- Fluxo Visual de 4 Nós Conectados -->
+            <div class="relative bg-[#F8FAFC] border border-slate-200/80 rounded-[10px] p-3">
+              <div class="grid grid-cols-2 gap-y-5 gap-x-4 relative">
+                <!-- Nó 1: Origem EMLURB -->
+                <button type="button" onclick="inspectGraphNode('origem')" id="node-origem"
+                  class="neo4j-node neo4j-node-active flex flex-col items-center p-2 rounded-[10px] bg-white border-2 border-[#0284C7] shadow-xs transition">
+                  <span class="w-8 h-8 rounded-full bg-[#0284C7] text-white text-xs font-extrabold flex items-center justify-center shadow-xs">🏢</span>
+                  <span class="text-[10px] font-extrabold text-slate-800 mt-1">Origem EMLURB</span>
+                  <span class="text-[9px] font-mono text-[#0284C7]">:Organizacao</span>
+                </button>
+
+                <!-- Seta Horizontal 1 -> 2 -->
+                <div class="hidden"></div>
+
+                <!-- Nó 2: Transporte Rota -->
+                <button type="button" onclick="inspectGraphNode('rota')" id="node-rota"
+                  class="neo4j-node flex flex-col items-center p-2 rounded-[10px] bg-white border border-slate-200 hover:border-sky-400 shadow-xs transition">
+                  <span class="w-8 h-8 rounded-full bg-sky-600 text-white text-xs font-extrabold flex items-center justify-center shadow-xs">🚛</span>
+                  <span class="text-[10px] font-extrabold text-slate-800 mt-1">Transporte Rota</span>
+                  <span class="text-[9px] font-mono text-sky-600">:RotaColeta</span>
+                </button>
+
+                <!-- Nó 3: Lote Rastreado -->
+                <button type="button" onclick="inspectGraphNode('lote')" id="node-lote"
+                  class="neo4j-node flex flex-col items-center p-2 rounded-[10px] bg-white border border-slate-200 hover:border-emerald-400 shadow-xs transition">
+                  <span id="nodeLoteCircle" class="w-8 h-8 rounded-full bg-[#16A34A] text-white text-xs font-extrabold flex items-center justify-center shadow-xs">📦</span>
+                  <span class="text-[10px] font-extrabold text-slate-800 mt-1">Lote Rastreado</span>
+                  <span id="nodeLoteTag" class="text-[9px] font-mono text-[#16A34A]">:LoteAuditado</span>
+                </button>
+
+                <!-- Nó 4: Destino Cooperativa -->
+                <button type="button" onclick="inspectGraphNode('destino')" id="node-destino"
+                  class="neo4j-node flex flex-col items-center p-2 rounded-[10px] bg-white border border-slate-200 hover:border-emerald-400 shadow-xs transition">
+                  <span id="nodeDestinoCircle" class="w-8 h-8 rounded-full bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center shadow-xs">♻️</span>
+                  <span id="nodeDestinoTitle" class="text-[10px] font-extrabold text-slate-800 mt-1">Destino Coop.</span>
+                  <span class="text-[9px] font-mono text-emerald-700">:DestinoFinal</span>
+                </button>
+              </div>
+
+              <!-- Legenda das Relações Neo4j -->
+              <div class="mt-2.5 pt-2 border-t border-slate-200/70 flex items-center justify-center gap-1.5 text-[9px] font-mono text-slate-500 flex-wrap">
+                <span class="px-1.5 py-0.5 bg-sky-100/70 text-[#0284C7] rounded">[:COLETADO_EM]</span>
+                <span>→</span>
+                <span class="px-1.5 py-0.5 bg-emerald-100/70 text-[#16A34A] rounded">[:RASTREADO_POR]</span>
+                <span>→</span>
+                <span class="px-1.5 py-0.5 bg-slate-200/70 text-slate-700 rounded">[:DESTINADO_A]</span>
+              </div>
+            </div>
+
+            <!-- Inspetor de Propriedades do Nó Selecionado -->
+            <div id="neo4jInspectorBox" class="bg-slate-900 text-slate-100 rounded-[10px] p-2.5 font-mono text-[10px] leading-relaxed">
+              <!-- Atualizado dinamicamente ao clicar nos nós -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TELA 4: INDICADORES (SINCRONIZADO EM TEMPO REAL)          -->
+        <!-- ========================================================= -->
+        <section id="screen-indicadores" class="hidden screen-animate space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-800">Indicadores Executivos</h2>
+              <p class="text-[11px] text-slate-500 flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-[#16A34A] inline-block"></span>
+                Sincronizado em tempo real
+              </p>
+            </div>
+            <button id="btnResetDemo" type="button" onclick="resetInitialData()"
+              class="hidden text-[10px] font-bold text-slate-600 bg-white hover:bg-slate-100 px-2.5 py-1 rounded-[10px] border border-slate-200 shadow-xs transition">
+              ↺ Restaurar Base
+            </button>
+          </div>
+
+          <!-- Cartão Principal: Peso Total -->
+          <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70 flex items-center justify-between">
+            <div>
+              <span class="text-[11px] font-semibold text-slate-500 block">Peso Total Movimentado</span>
+              <span id="kpiPesoTotal" class="text-2xl font-extrabold text-[#0284C7] tracking-tight">3.000 kg</span>
+            </div>
+            <div class="text-right">
+              <span id="kpiTotalLotes" class="inline-block text-[11px] font-bold text-[#0284C7] bg-sky-50 px-2.5 py-1 rounded-[10px]">
+                4 Lotes
+              </span>
+              <span class="block text-[10px] text-slate-400 mt-1">6 Organizações</span>
+            </div>
+          </div>
+
+          <!-- Grade 2 Colunas: Aproveitamento Limpo (Verde) & Perdas (Laranja) -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <!-- Aproveitamento Limpo -->
+            <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-semibold text-slate-500">Aproveitamento</span>
+                <span class="w-2 h-2 rounded-full bg-[#16A34A]"></span>
+              </div>
+              <p id="kpiTaxaAproveitamento" class="text-xl font-extrabold text-[#16A34A]">78,3%</p>
+              <p id="kpiPesoAproveitavel" class="text-xs font-bold text-slate-600 mt-0.5">2.350 kg</p>
+            </div>
+
+            <!-- Perdas -->
+            <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-semibold text-slate-500">Perdas / Desvio</span>
+                <span class="w-2 h-2 rounded-full bg-[#EA580C]"></span>
+              </div>
+              <p id="kpiTaxaPerdas" class="text-xl font-extrabold text-[#EA580C]">21,7%</p>
+              <p id="kpiPesoPerdido" class="text-xs font-bold text-slate-600 mt-0.5">650 kg</p>
+            </div>
+          </div>
+
+          <!-- Barras de Progresso por Material -->
+          <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70 space-y-2.5">
+            <h3 class="text-xs font-extrabold text-slate-800">Volume por Material</h3>
+            <div id="materialProgressList" class="space-y-2.5">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+
+          <!-- Lista Clicável dos Lotes (Abre o comprovante na Tela 3) -->
+          <div class="bg-white rounded-[10px] p-3.5 shadow-sm border border-slate-200/70 space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-extrabold text-slate-800">Lotes Rastreados</h3>
+              <span class="text-[10px] text-[#0284C7] font-semibold">Toque para auditar →</span>
+            </div>
+            <div id="kpiClickableBatchList" class="divide-y divide-slate-100">
+              <!-- Renderizado via JS -->
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Navegação Inferior Fixa (4 Telas) -->
+      <nav class="bg-white border-t border-slate-200 px-2 pt-2 pb-1.5 grid grid-cols-4 gap-1 shrink-0 z-20">
+        <button type="button" onclick="navigateTo('acesso')" data-nav="acesso"
+          class="nav-tab flex flex-col items-center justify-center py-1 rounded-[10px] text-[#0284C7] bg-sky-50/80 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">Acesso</span>
+        </button>
+
+        <button type="button" onclick="navigateTo('registrar')" data-nav="registrar"
+          class="nav-tab flex flex-col items-center justify-center py-1 rounded-[10px] text-slate-400 hover:text-slate-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">Registrar</span>
+        </button>
+
+        <button type="button" onclick="navigateTo('rastreio')" data-nav="rastreio"
+          class="nav-tab flex flex-col items-center justify-center py-1 rounded-[10px] text-slate-400 hover:text-slate-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">Rastreio</span>
+        </button>
+
+        <button type="button" onclick="navigateTo('indicadores')" data-nav="indicadores"
+          class="nav-tab flex flex-col items-center justify-center py-1 rounded-[10px] text-slate-400 hover:text-slate-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <span class="text-[10px] font-bold mt-0.5">Indicadores</span>
+        </button>
+      </nav>
+
+      <!-- Barra Home Inferior Estilo Smartphone -->
+      <div class="bg-white pb-2 pt-0.5 flex justify-center shrink-0">
+        <div class="w-28 h-1 bg-slate-300 rounded-full"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    // =========================================================================
+    // ESTADO INICIAL DA SESSÃO (Sincronizado com o Dashboard Power BI: 3.000 kg)
+    // =========================================================================
+    const INITIAL_BATCHES = [
+      {
+        codigo: 'NORTE-DIU-001',
+        material: 'Plástico PET e Papelão',
+        peso: 1400,
+        rota: 'Rota Norte',
+        origem: 'EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)',
+        destino: 'Cooperativa Recicla Recife',
+        classificacao: 'Aproveitável',
+        valorKg: 1.45,
+        timestamp: 'Hoje, 08:15',
+        hash: '0x8F4C...91A2'
+      },
+      {
+        codigo: 'SUL-NOT-001',
+        material: 'Ferro e Sucata Metálica',
+        peso: 950,
+        rota: 'Rota Sul',
+        origem: 'EMLURB - Rota Sul (Av. Boa Viagem / Pina, Recife)',
+        destino: 'Cooperativa Recicla Recife',
+        classificacao: 'Aproveitável',
+        valorKg: 1.10,
+        timestamp: 'Hoje, 09:02',
+        hash: '0x3E7B...44D9'
+      },
+      {
+        codigo: 'SUL-NOT-002-CONTAMINADO',
+        material: 'Rejeito Lixo Comum e Hospitalar',
+        peso: 450,
+        rota: 'Rota Sul',
+        origem: 'EMLURB - Rota Sul (Av. Boa Viagem / Pina, Recife)',
+        destino: 'Aterro Controlado (Bloqueado p/ Cooperativa)',
+        classificacao: 'Perda / Contaminado',
+        valorKg: 0,
+        timestamp: 'Hoje, 09:28',
+        hash: '0x9A1D...77C0'
+      },
+      {
+        codigo: 'NORTE-DIU-002-QUEBRA',
+        material: 'Desvio Catadores Anônimos',
+        peso: 200,
+        rota: 'Rota Norte',
+        origem: 'EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)',
+        destino: 'Alerta de Desvio / Quebra de Pesagem',
+        classificacao: 'Perda / Contaminado',
+        valorKg: 0,
+        timestamp: 'Hoje, 10:05',
+        hash: '0x5C2F...18E4'
+      }
+    ];
+
+    let state = {
+      currentScreen: 'acesso',
+      selectedUnit: 'EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)',
+      selectedRole: 'Operador de Coleta',
+      formRota: 'Rota Norte',
+      formClassificacao: 'Aproveitável',
+      batches: JSON.parse(JSON.stringify(INITIAL_BATCHES)),
+      selectedAuditCodigo: 'NORTE-DIU-001',
+      selectedGraphNode: 'origem'
+    };
+
+    // =========================================================================
+    // UTILITÁRIOS DE FORMATAÇÃO E NOTIFICAÇÃO
+    // =========================================================================
+    function formatNumberBR(num) {
+      return Number(num).toLocaleString('pt-BR');
+    }
+
+    function formatCurrencyBR(num) {
+      return Number(num).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    let toastTimeout = null;
+    function showToast(message, type = 'blue') {
+      const banner = document.getElementById('toastBanner');
+      const msgEl = document.getElementById('toastMessage');
+      msgEl.textContent = message;
+
+      banner.classList.remove('hidden', 'bg-[#0284C7]', 'bg-[#16A34A]', 'bg-[#EA580C]');
+      if (type === 'green') banner.classList.add('bg-[#16A34A]');
+      else if (type === 'orange') banner.classList.add('bg-[#EA580C]');
+      else banner.classList.add('bg-[#0284C7]');
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        hideToast();
+      }, 3400);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBanner').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // NAVEGAÇÃO ENTRE AS 4 TELAS
+    // =========================================================================
+    function navigateTo(screenId) {
+      state.currentScreen = screenId;
+
+      // Alterna visibilidade das seções
+      ['acesso', 'registrar', 'rastreio', 'indicadores'].forEach(id => {
+        const el = document.getElementById(`screen-${id}`);
+        if (id === screenId) {
+          el.classList.remove('hidden');
+          // Reinicia animação
+          el.classList.remove('screen-animate');
+          void el.offsetWidth;
+          el.classList.add('screen-animate');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+
+      // Barra superior contextual oculta na Tela 1 (Acesso) e visível nas demais
+      const topBar = document.getElementById('appTopBar');
+      if (screenId === 'acesso') {
+        topBar.classList.add('hidden');
+      } else {
+        topBar.classList.remove('hidden');
+        updateHeaderContext();
+      }
+
+      // Atualiza estado ativo da navegação inferior
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        const isTarget = tab.getAttribute('data-nav') === screenId;
+        if (isTarget) {
+          tab.classList.remove('text-slate-400', 'hover:text-slate-600');
+          tab.classList.add('text-[#0284C7]', 'bg-sky-50/80');
+        } else {
+          tab.classList.remove('text-[#0284C7]', 'bg-sky-50/80');
+          tab.classList.add('text-slate-400', 'hover:text-slate-600');
+        }
+      });
+
+      // Atualiza dados dinâmicos da tela aberta
+      if (screenId === 'rastreio') {
+        renderAuditScreen();
+      } else if (screenId === 'indicadores') {
+        renderIndicatorsScreen();
+      }
+
+      // Volta scroll interno para o topo
+      document.getElementById('screenContainer').scrollTop = 0;
+    }
+
+    function updateHeaderContext() {
+      const shortUnit = state.selectedUnit.split(' (')[0];
+      const shortRole = state.selectedRole.split(' ')[0];
+      document.getElementById('headerContextLabel').textContent = `${shortUnit} • ${shortRole}`;
+    }
+
+    // =========================================================================
+    // TELA 1: LÓGICA DE ACESSO
+    // =========================================================================
+    function selectUnit(unitName) {
+      state.selectedUnit = unitName;
+
+      // Sincroniza rota padrão do formulário com a unidade escolhida
+      if (unitName.includes('Rota Sul')) {
+        selectRota('Rota Sul');
+      } else {
+        selectRota('Rota Norte');
+      }
+
+      document.querySelectorAll('.unit-btn').forEach(btn => {
+        const dot = btn.querySelector('.unit-dot');
+        if (btn.getAttribute('data-unit') === unitName) {
+          btn.classList.remove('border', 'border-slate-200', 'bg-white');
+          btn.classList.add('border-2', 'border-[#0284C7]', 'bg-sky-50/70');
+          dot.classList.remove('border-2', 'border-slate-300');
+          dot.classList.add('border-4', 'border-[#0284C7]');
+        } else {
+          btn.classList.remove('border-2', 'border-[#0284C7]', 'bg-sky-50/70');
+          btn.classList.add('border', 'border-slate-200', 'bg-white');
+          dot.classList.remove('border-4', 'border-[#0284C7]');
+          dot.classList.add('border-2', 'border-slate-300');
+        }
+      });
+    }
+
+    function selectRole(roleName) {
+      state.selectedRole = roleName;
+      const btnOp = document.getElementById('role-operador');
+      const btnAu = document.getElementById('role-auditor');
+
+      if (roleName === 'Operador de Coleta') {
+        btnOp.className = 'p-2.5 rounded-[10px] border-2 border-[#0284C7] bg-sky-50/70 text-left transition';
+        btnOp.querySelector('span:last-child').className = 'w-2 h-2 rounded-full bg-[#0284C7]';
+        btnAu.className = 'p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-left transition';
+        btnAu.querySelector('span:last-child').className = 'w-2 h-2 rounded-full bg-slate-200';
+      } else {
+        btnAu.className = 'p-2.5 rounded-[10px] border-2 border-[#0284C7] bg-sky-50/70 text-left transition';
+        btnAu.querySelector('span:last-child').className = 'w-2 h-2 rounded-full bg-[#0284C7]';
+        btnOp.className = 'p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-slate-50 text-left transition';
+        btnOp.querySelector('span:last-child').className = 'w-2 h-2 rounded-full bg-slate-200';
+      }
+    }
+
+    function enterOperation() {
+      const targetScreen = state.selectedRole === 'Auditor / Gestor' ? 'rastreio' : 'registrar';
+      navigateTo(targetScreen);
+      showToast(`Sessão iniciada: ${state.selectedRole}`, 'blue');
+    }
+
+    // =========================================================================
+    // TELA 2: LÓGICA DE REGISTRO DE LOTE
+    // =========================================================================
+    function selectRota(rota) {
+      state.formRota = rota;
+      const btnNorte = document.getElementById('btnRotaNorte');
+      const btnSul = document.getElementById('btnRotaSul');
+
+      if (rota === 'Rota Norte') {
+        btnNorte.className = 'py-2 px-3 rounded-[10px] text-xs font-bold border-2 border-[#0284C7] bg-sky-50 text-[#0284C7] transition';
+        btnSul.className = 'py-2 px-3 rounded-[10px] text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition';
+      } else {
+        btnSul.className = 'py-2 px-3 rounded-[10px] text-xs font-bold border-2 border-[#0284C7] bg-sky-50 text-[#0284C7] transition';
+        btnNorte.className = 'py-2 px-3 rounded-[10px] text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition';
+      }
+    }
+
+    function selectClassificacao(tipo) {
+      state.formClassificacao = tipo;
+      const btnAp = document.getElementById('btnClassAproveitavel');
+      const btnPe = document.getElementById('btnClassPerda');
+
+      if (tipo === 'Aproveitável') {
+        btnAp.className = 'p-2.5 rounded-[10px] border-2 border-[#16A34A] bg-green-50 text-left transition';
+        btnPe.className = 'p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-orange-50/40 text-left transition';
+      } else {
+        btnPe.className = 'p-2.5 rounded-[10px] border-2 border-[#EA580C] bg-orange-50 text-left transition';
+        btnAp.className = 'p-2.5 rounded-[10px] border border-slate-200 bg-white hover:bg-green-50/40 text-left transition';
+      }
+    }
+
+    function autoSuggestClassification() {
+      const mat = document.getElementById('inputMaterial').value;
+      if (mat.includes('Rejeito') || mat.includes('Desvio')) {
+        selectClassificacao('Perda / Contaminado');
+      } else {
+        selectClassificacao('Aproveitável');
+      }
+    }
+
+    function adjustWeight(delta) {
+      const input = document.getElementById('inputPeso');
+      const current = parseInt(input.value || '0', 10);
+      input.value = Math.max(50, current + delta);
+    }
+
+    function fillPresetSample() {
+      const nextNum = String(state.batches.length + 1).padStart(3, '0');
+      const prefix = state.formRota === 'Rota Sul' ? 'SUL-NOT' : 'NORTE-DIU';
+      document.getElementById('inputCodigo').value = `${prefix}-${nextNum}`;
+      document.getElementById('inputMaterial').value = 'Plástico PET e Papelão';
+      document.getElementById('inputPeso').value = 600;
+      selectClassificacao('Aproveitável');
+      showToast('Dados de exemplo preenchidos!', 'blue');
+    }
+
+    function handleRegisterBatch(event) {
+      event.preventDefault();
+      const rawCode = document.getElementById('inputCodigo').value.trim().toUpperCase();
+      const material = document.getElementById('inputMaterial').value;
+      const peso = parseInt(document.getElementById('inputPeso').value, 10);
+
+      if (!rawCode || isNaN(peso) || peso <= 0) {
+        showToast('Informe um código válido e peso maior que zero.', 'orange');
+        return;
+      }
+
+      const isAproveitavel = state.formClassificacao === 'Aproveitável';
+      const valorKg = !isAproveitavel ? 0 : (material.includes('PET') ? 1.45 : 1.10);
+      const randomHex = Math.random().toString(16).substring(2, 6).toUpperCase();
+      const randomHexEnd = Math.random().toString(16).substring(2, 6).toUpperCase();
+
+      const origemLabel = state.formRota === 'Rota Norte'
+        ? 'EMLURB - Rota Norte (Av. Norte / Casa Amarela, Recife)'
+        : 'EMLURB - Rota Sul (Av. Boa Viagem / Pina, Recife)';
+
+      const newBatch = {
+        codigo: rawCode,
+        material: material,
+        peso: peso,
+        rota: state.formRota,
+        origem: origemLabel,
+        destino: isAproveitavel ? 'Cooperativa Recicla Recife' : 'Aterro Controlado / Alerta de Perda',
+        classificacao: state.formClassificacao,
+        valorKg: valorKg,
+        timestamp: 'Agora mesmo',
+        hash: `0x${randomHex}...${randomHexEnd}`
+      };
+
+      // Substitui se mesmo código ou insere no topo da lista da sessão
+      const existingIndex = state.batches.findIndex(b => b.codigo === rawCode);
+      if (existingIndex >= 0) {
+        state.batches[existingIndex] = newBatch;
+      } else {
+        state.batches.unshift(newBatch);
+      }
+
+      state.selectedAuditCodigo = newBatch.codigo;
+
+      // Prepara próximo código sugerido
+      const nextCount = String(state.batches.length + 1).padStart(3, '0');
+      document.getElementById('inputCodigo').value = `NORTE-DIU-${nextCount}`;
+
+      navigateTo('rastreio');
+      showToast(
+        isAproveitavel
+          ? `Lote ${newBatch.codigo} auditado e enviado à cooperativa!`
+          : `Alerta registrado: ${newBatch.codigo} marcado como perda.`,
+        isAproveitavel ? 'green' : 'orange'
+      );
+    }
+
+    // =========================================================================
+    // TELA 3: RASTREIO & AUDITORIA + GRAFO INTERATIVO NEO4J
+    // =========================================================================
+    function renderAuditScreen() {
+      const selectEl = document.getElementById('auditBatchSelect');
+      selectEl.innerHTML = state.batches.map(b => {
+        const icon = b.classificacao === 'Aproveitável' ? '🟢' : '🟠';
+        return `<option value="${b.codigo}" ${b.codigo === state.selectedAuditCodigo ? 'selected' : ''}>
+          ${icon} ${b.codigo} — ${b.material} (${formatNumberBR(b.peso)} kg)
+        </option>`;
+      }).join('');
+
+      const batch = state.batches.find(b => b.codigo === state.selectedAuditCodigo) || state.batches[0];
+      state.selectedAuditCodigo = batch.codigo;
+
+      const isAproveitavel = batch.classificacao === 'Aproveitável';
+      const badgeEl = document.getElementById('auditStatusBadge');
+
+      if (isAproveitavel) {
+        badgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-[10px] text-[11px] font-extrabold bg-green-100 text-[#16A34A]';
+        badgeEl.textContent = '✓ Origem Comprovada';
+      } else {
+        badgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-[10px] text-[11px] font-extrabold bg-orange-100 text-[#EA580C]';
+        badgeEl.textContent = '⚠ Alerta de Perda / Opacidade Bloqueada';
+      }
+
+      document.getElementById('auditBatchCode').textContent = batch.codigo;
+      document.getElementById('auditBatchMaterial').textContent = batch.material;
+      document.getElementById('auditBatchHash').textContent = batch.hash;
+      document.getElementById('auditBatchWeight').textContent = `${formatNumberBR(batch.peso)} kg`;
+
+      const payoutEl = document.getElementById('auditBatchPayout');
+      if (isAproveitavel) {
+        const totalPayout = batch.peso * batch.valorKg;
+        payoutEl.className = 'text-sm font-extrabold text-[#16A34A]';
+        payoutEl.textContent = formatCurrencyBR(totalPayout);
+      } else {
+        payoutEl.className = 'text-sm font-extrabold text-[#EA580C]';
+        payoutEl.textContent = 'R$ 0,00 (Retido)';
+      }
+
+      document.getElementById('auditBatchRoute').textContent = `📍 ${batch.rota} • EMLURB`;
+      document.getElementById('auditBatchTime').textContent = batch.timestamp;
+
+      // Atualiza cores dos nós do grafo conforme classificação do lote
+      const nodeLoteCircle = document.getElementById('nodeLoteCircle');
+      const nodeLoteTag = document.getElementById('nodeLoteTag');
+      const nodeDestinoCircle = document.getElementById('nodeDestinoCircle');
+      const nodeDestinoTitle = document.getElementById('nodeDestinoTitle');
+
+      if (isAproveitavel) {
+        nodeLoteCircle.className = 'w-8 h-8 rounded-full bg-[#16A34A] text-white text-xs font-extrabold flex items-center justify-center shadow-xs';
+        nodeLoteTag.className = 'text-[9px] font-mono text-[#16A34A]';
+        nodeLoteTag.textContent = ':LoteAuditado';
+        nodeDestinoCircle.className = 'w-8 h-8 rounded-full bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center shadow-xs';
+        nodeDestinoCircle.textContent = '♻️';
+        nodeDestinoTitle.textContent = 'Destino Coop.';
+      } else {
+        nodeLoteCircle.className = 'w-8 h-8 rounded-full bg-[#EA580C] text-white text-xs font-extrabold flex items-center justify-center shadow-xs';
+        nodeLoteTag.className = 'text-[9px] font-mono text-[#EA580C]';
+        nodeLoteTag.textContent = ':AlertaPerda';
+        nodeDestinoCircle.className = 'w-8 h-8 rounded-full bg-orange-700 text-white text-xs font-extrabold flex items-center justify-center shadow-xs';
+        nodeDestinoCircle.textContent = '🚫';
+        nodeDestinoTitle.textContent = 'Descarte / Desvio';
+      }
+
+      inspectGraphNode(state.selectedGraphNode);
+    }
+
+    function selectAuditBatch(codigo) {
+      state.selectedAuditCodigo = codigo;
+      renderAuditScreen();
+    }
+
+    function inspectGraphNode(nodeKey) {
+      state.selectedGraphNode = nodeKey;
+      const batch = state.batches.find(b => b.codigo === state.selectedAuditCodigo) || state.batches[0];
+
+      // Destaca botão do nó ativo
+      ['origem', 'rota', 'lote', 'destino'].forEach(key => {
+        const el = document.getElementById(`node-${key}`);
+        if (key === nodeKey) {
+          el.classList.add('border-2', 'border-[#0284C7]', 'neo4j-node-active');
+          el.classList.remove('border', 'border-slate-200');
+        } else {
+          el.classList.remove('border-2', 'border-[#0284C7]', 'neo4j-node-active');
+          el.classList.add('border', 'border-slate-200');
+        }
+      });
+
+      const inspector = document.getElementById('neo4jInspectorBox');
+      if (nodeKey === 'origem') {
+        inspector.innerHTML = `
+          <span class="text-sky-400">MATCH (o:Organizacao)</span><br/>
+          nome: <span class="text-emerald-300">"${batch.origem.split(' (')[0]}"</span><br/>
+          local: <span class="text-amber-300">"Recife - PE"</span> • status: <span class="text-emerald-400">"VERIFICADO"</span>
+        `;
+      } else if (nodeKey === 'rota') {
+        inspector.innerHTML = `
+          <span class="text-sky-400">MATCH (o)-[:COLETADO_EM]->(r:RotaColeta)</span><br/>
+          rota: <span class="text-emerald-300">"${batch.rota}"</span> • registro: <span class="text-amber-300">"${batch.timestamp}"</span><br/>
+          rastreioGPS: <span class="text-emerald-400">true</span>
+        `;
+      } else if (nodeKey === 'lote') {
+        const statusColor = batch.classificacao === 'Aproveitável' ? 'text-emerald-400' : 'text-orange-400';
+        inspector.innerHTML = `
+          <span class="text-sky-400">MATCH (r)-[:RASTREADO_POR]->(l:Lote)</span><br/>
+          codigo: <span class="text-emerald-300">"${batch.codigo}"</span> • pesoKg: <span class="text-amber-300">${batch.peso}</span><br/>
+          status: <span class="${statusColor}">"${batch.classificacao.toUpperCase()}"</span>
+        `;
+      } else {
+        const repasse = batch.classificacao === 'Aproveitável'
+          ? formatCurrencyBR(batch.peso * batch.valorKg)
+          : 'R$ 0,00 (Bloqueado)';
+        inspector.innerHTML = `
+          <span class="text-sky-400">MATCH (l)-[:DESTINADO_A]->(d:DestinoFinal)</span><br/>
+          unidade: <span class="text-emerald-300">"${batch.destino}"</span><br/>
+          repasseJusto: <span class="text-amber-300">"${repasse}"</span>
+        `;
+      }
+    }
+
+    // =========================================================================
+    // TELA 4: INDICADORES EXECUTIVOS EM TEMPO REAL
+    // =========================================================================
+    function renderIndicatorsScreen() {
+      const totalKg = state.batches.reduce((acc, b) => acc + b.peso, 0);
+      const aproveitavelKg = state.batches
+        .filter(b => b.classificacao === 'Aproveitável')
+        .reduce((acc, b) => acc + b.peso, 0);
+      const perdasKg = totalKg - aproveitavelKg;
+
+      const taxaAproveitamento = totalKg > 0 ? ((aproveitavelKg / totalKg) * 100) : 0;
+      const taxaPerdas = totalKg > 0 ? ((perdasKg / totalKg) * 100) : 0;
+
+      document.getElementById('kpiPesoTotal').textContent = `${formatNumberBR(totalKg)} kg`;
+      document.getElementById('kpiTotalLotes').textContent = `${state.batches.length} Lotes`;
+      document.getElementById('kpiTaxaAproveitamento').textContent = `${taxaAproveitamento.toFixed(1).replace('.', ',')}%`;
+      document.getElementById('kpiPesoAproveitavel').textContent = `${formatNumberBR(aproveitavelKg)} kg`;
+      document.getElementById('kpiTaxaPerdas').textContent = `${taxaPerdas.toFixed(1).replace('.', ',')}%`;
+      document.getElementById('kpiPesoPerdido').textContent = `${formatNumberBR(perdasKg)} kg`;
+
+      // Mostra botão de restaurar base caso novos lotes tenham sido adicionados
+      const resetBtn = document.getElementById('btnResetDemo');
+      if (state.batches.length !== INITIAL_BATCHES.length || totalKg !== 3000) {
+        resetBtn.classList.remove('hidden');
+      } else {
+        resetBtn.classList.add('hidden');
+      }
+
+      // Agrupa pesos por material para as barras de progresso
+      const materialMap = {};
+      state.batches.forEach(b => {
+        if (!materialMap[b.material]) {
+          materialMap[b.material] = {
+            peso: 0,
+            classificacao: b.classificacao
+          };
+        }
+        materialMap[b.material].peso += b.peso;
+      });
+
+      const sortedMaterials = Object.entries(materialMap).sort((a, b) => b[1].peso - a[1].peso);
+      const progressContainer = document.getElementById('materialProgressList');
+
+      progressContainer.innerHTML = sortedMaterials.map(([matName, info], index) => {
+        const pct = totalKg > 0 ? Math.round((info.peso / totalKg) * 100) : 0;
+        let barColor = 'bg-[#16A34A]';
+        if (info.classificacao !== 'Aproveitável') {
+          barColor = 'bg-[#EA580C]';
+        } else if (index === 1) {
+          barColor = 'bg-[#0284C7]';
+        }
+
+        return `
+          <div>
+            <div class="flex items-center justify-between text-[11px] mb-1">
+              <span class="font-semibold text-slate-700 truncate pr-2">${matName}</span>
+              <span class="font-extrabold text-slate-800 shrink-0">${formatNumberBR(info.peso)} kg <span class="text-slate-400 font-medium">(${pct}%)</span></span>
+            </div>
+            <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full ${barColor} rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Lista clicável dos lotes
+      const listContainer = document.getElementById('kpiClickableBatchList');
+      listContainer.innerHTML = state.batches.map(b => {
+        const isOk = b.classificacao === 'Aproveitável';
+        const pillClass = isOk
+          ? 'bg-green-100 text-[#16A34A]'
+          : 'bg-orange-100 text-[#EA580C]';
+        const weightClass = isOk ? 'text-[#16A34A]' : 'text-[#EA580C]';
+
+        return `
+          <button type="button" onclick="openBatchFromIndicators('${b.codigo}')"
+            class="w-full py-2.5 flex items-center justify-between text-left hover:bg-slate-50/80 transition group">
+            <div class="min-w-0 pr-2">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-extrabold text-slate-800 group-hover:text-[#0284C7] transition">${b.codigo}</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${pillClass}">
+                  ${isOk ? 'Auditado' : 'Perda'}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500 truncate mt-0.5">${b.material} • ${b.rota}</p>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-xs font-extrabold ${weightClass}">${formatNumberBR(b.peso)} kg</span>
+              <span class="block text-[10px] text-slate-400">Ver grafo ›</span>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function openBatchFromIndicators(codigo) {
+      state.selectedAuditCodigo = codigo;
+      navigateTo('rastreio');
+    }
+
+    function resetInitialData() {
+      state.batches = JSON.parse(JSON.stringify(INITIAL_BATCHES));
+      state.selectedAuditCodigo = 'NORTE-DIU-001';
+      renderIndicatorsScreen();
+      showToast('Base inicial de 3.000 kg restaurada!', 'blue');
+    }
+
+    // Inicialização ao carregar
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAuditScreen();
+      renderIndicatorsScreen();
+    });
+  </script>
+</body>
+</html>

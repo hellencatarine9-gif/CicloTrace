@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  neo4j-ciclotrace:
+    image: neo4j:5.15.0-community
+    container_name: ciclotrace-db
+    ports:
+      - "7474:7474" # Interface Web (http://localhost:7474)
+      - "7687:7687" # Conexão Bolt (Spring Boot)
+    environment:
+      - NEO4J_AUTH=neo4j/ciclotrace123
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  neo4j_data:
