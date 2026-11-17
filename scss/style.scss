@@ -1,0 +1,58 @@
+// Variáveis de tema CicloTrace
+$font-primary: 'Inter', sans-serif;
+$bg-gradient: radial-gradient(circle at top left, #DCE7F5 0%, #EBF0F6 55%, #D5E2F2 100%);
+$scrollbar-thumb: #CBD5E1;
+$pulse-color-start: rgba(2, 132, 199, 0.35);
+$pulse-color-end: rgba(2, 132, 199, 0);
+
+// Estilos base
+body {
+  font-family: $font-primary;
+  background: $bg-gradient;
+}
+
+// Barra de rolagem discreta dentro do smartphone
+.app-scroll {
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $scrollbar-thumb;
+    border-radius: 9999px;
+  }
+}
+
+// Animação suave de entrada entre telas
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.screen-animate {
+  animation: fadeSlideIn 0.22s ease-out forwards;
+}
+
+// Pulso suave no nó selecionado do grafo Neo4j
+@keyframes nodePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 $pulse-color-start;
+  }
+  50% {
+    box-shadow: 0 0 0 6px $pulse-color-end;
+  }
+}
+
+.neo4j-node-active {
+  animation: nodePulse 2s infinite;
+}
