@@ -101,12 +101,10 @@ function hideToast() {
 function navigateTo(screenId) {
   state.currentScreen = screenId;
 
-  // Alterna visibilidade das seções
   ['acesso', 'registrar', 'rastreio', 'indicadores'].forEach(id => {
     const el = document.getElementById(`screen-${id}`);
     if (id === screenId) {
       el.classList.remove('hidden');
-      // Reinicia animação
       el.classList.remove('screen-animate');
       void el.offsetWidth;
       el.classList.add('screen-animate');
@@ -115,7 +113,6 @@ function navigateTo(screenId) {
     }
   });
 
-  // Barra superior contextual oculta na Tela 1 (Acesso) e visível nas demais
   const topBar = document.getElementById('appTopBar');
   if (screenId === 'acesso') {
     topBar.classList.add('hidden');
@@ -124,7 +121,6 @@ function navigateTo(screenId) {
     updateHeaderContext();
   }
 
-  // Atualiza estado ativo da navegação inferior
   document.querySelectorAll('.nav-tab').forEach(tab => {
     const isTarget = tab.getAttribute('data-nav') === screenId;
     if (isTarget) {
@@ -136,14 +132,12 @@ function navigateTo(screenId) {
     }
   });
 
-  // Atualiza dados dinâmicos da tela aberta
   if (screenId === 'rastreio') {
     renderAuditScreen();
   } else if (screenId === 'indicadores') {
     renderIndicatorsScreen();
   }
 
-  // Volta scroll interno para o topo
   document.getElementById('screenContainer').scrollTop = 0;
 }
 
@@ -159,7 +153,6 @@ function updateHeaderContext() {
 function selectUnit(unitName) {
   state.selectedUnit = unitName;
 
-  // Sincroniza rota padrão do formulário com a unidade escolhida
   if (unitName.includes('Rota Sul')) {
     selectRota('Rota Sul');
   } else {
@@ -295,7 +288,6 @@ function handleRegisterBatch(event) {
     hash: `0x${randomHex}...${randomHexEnd}`
   };
 
-  // Substitui se mesmo código ou insere no topo da lista da sessão
   const existingIndex = state.batches.findIndex(b => b.codigo === rawCode);
   if (existingIndex >= 0) {
     state.batches[existingIndex] = newBatch;
@@ -305,7 +297,6 @@ function handleRegisterBatch(event) {
 
   state.selectedAuditCodigo = newBatch.codigo;
 
-  // Prepara próximo código sugerido
   const nextCount = String(state.batches.length + 1).padStart(3, '0');
   document.getElementById('inputCodigo').value = `NORTE-DIU-${nextCount}`;
 
@@ -362,7 +353,6 @@ function renderAuditScreen() {
   document.getElementById('auditBatchRoute').textContent = `📍 ${batch.rota} • EMLURB`;
   document.getElementById('auditBatchTime').textContent = batch.timestamp;
 
-  // Atualiza cores dos nós do grafo conforme classificação do lote
   const nodeLoteCircle = document.getElementById('nodeLoteCircle');
   const nodeLoteTag = document.getElementById('nodeLoteTag');
   const nodeDestinoCircle = document.getElementById('nodeDestinoCircle');
@@ -396,7 +386,6 @@ function inspectGraphNode(nodeKey) {
   state.selectedGraphNode = nodeKey;
   const batch = state.batches.find(b => b.codigo === state.selectedAuditCodigo) || state.batches[0];
 
-  // Destaca botão do nó ativo
   ['origem', 'rota', 'lote', 'destino'].forEach(key => {
     const el = document.getElementById(`node-${key}`);
     if (key === nodeKey) {
@@ -460,7 +449,6 @@ function renderIndicatorsScreen() {
   document.getElementById('kpiTaxaPerdas').textContent = `${taxaPerdas.toFixed(1).replace('.', ',')}%`;
   document.getElementById('kpiPesoPerdido').textContent = `${formatNumberBR(perdasKg)} kg`;
 
-  // Mostra botão de restaurar base caso novos lotes tenham sido adicionados
   const resetBtn = document.getElementById('btnResetDemo');
   if (state.batches.length !== INITIAL_BATCHES.length || totalKg !== 3000) {
     resetBtn.classList.remove('hidden');
@@ -468,7 +456,6 @@ function renderIndicatorsScreen() {
     resetBtn.classList.add('hidden');
   }
 
-  // Agrupa pesos por material para as barras de progresso
   const materialMap = {};
   state.batches.forEach(b => {
     if (!materialMap[b.material]) {
@@ -505,7 +492,6 @@ function renderIndicatorsScreen() {
     `;
   }).join('');
 
-  // Lista clicável dos lotes
   const listContainer = document.getElementById('kpiClickableBatchList');
   listContainer.innerHTML = state.batches.map(b => {
     const isOk = b.classificacao === 'Aproveitável';
@@ -547,7 +533,6 @@ function resetInitialData() {
   showToast('Base inicial de 3.000 kg restaurada!', 'blue');
 }
 
-// Inicialização ao carregar
 window.addEventListener('DOMContentLoaded', () => {
   renderAuditScreen();
   renderIndicatorsScreen();
